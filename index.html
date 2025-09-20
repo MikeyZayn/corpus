@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>isiZulu-English Cultural Corpus</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <style>
+    /* University of Zululand inspired colors */
+    .bg-unizulu-blue { background-color: #003366; } /* Dark Blue */
+    .text-unizulu-yellow { color: #FFD700; } /* Gold */
+    .hover\:bg-unizulu-blue-darker:hover { background-color: #002244; }
+    .border-unizulu-yellow { border-color: #FFD700; }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+  <!-- Header - Consistent across pages -->
+  <header class="bg-unizulu-blue shadow p-6 text-center">
+    <h1 class="text-2xl md:text-4xl font-bold text-unizulu-yellow">isiZulu-English Cultural Corpus</h1>
+    <p class="text-sm text-white mt-2">Explore cultural expressions, phrases, and meanings</p>
+
+    <!-- Auth Links & Language Toggle -->
+    <div class="mt-4 flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+      {% if session.username %}
+        <span class="text-unizulu-yellow mr-4">Welcome, {{ session.username }}</span>
+        <a href="{{ url_for('profile') }}" class="text-white hover:underline mr-4">Profile</a>
+        <a href="{{ url_for('logout') }}" class="text-white hover:underline">Logout</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="text-white hover:underline mr-4">Login</a>
+        <a href="{{ url_for('register') }}" class="text-white hover:underline">Register</a>
+      {% endif %}
+      <!-- Language Toggle Placeholder -->
+      <div class="mt-2 sm:mt-0 ml-0 sm:ml-4">
+        <select class="bg-unizulu-blue text-white border border-unizulu-yellow rounded-md p-1 text-sm">
+          <option>English</option>
+          <option>isiZulu</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flashed Messages (if any, though not typical on main index unless from redirect) -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="max-w-4xl mx-auto mt-4 space-y-2">
+        {% for category, message in messages %}
+          <div class="p-3 rounded-md
+                      {% if category == 'success' %} bg-green-100 text-green-800
+                      {% elif category == 'error' %} bg-red-100 text-red-800
+                      {% elif category == 'info' %} bg-blue-100 text-blue-800
+                      {% else %} bg-gray-100 text-gray-800 {% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Search Section -->
+  <section class="max-w-3xl mx-auto p-6 mt-8">
+    <div class="bg-white rounded-xl shadow p-6 border-t-4 border-unizulu-yellow">
+      <form action="/" method="get">
+        <input 
+          type="text" 
+          name="q"
+          placeholder="Search isiZulu or English..." 
+          value="{{ query or '' }}"
+          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-unizulu-blue focus:border-transparent transition"
+        />
+
+        <!-- Filters -->
+        <div class="mt-6 flex flex-wrap items-center gap-4">
+          <select name="domain" class="p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-unizulu-blue focus:border-transparent bg-white text-gray-700">
+            <option value="" {% if not request.args.get('domain') %}selected{% endif %}>Filter by Domain</option>
+            <!-- Updated Domain Options with English Translations -->
+            <option value="Ubuntombi" {% if request.args.get('domain') == 'Ubuntombi' %}selected{% endif %}>Ubuntombi (Maidenhood)</option>
+            <option value="Ukushada" {% if request.args.get('domain') == 'Ukushada' %}selected{% endif %}>Ukushada (Marriage)</option>
+            <option value="Ukubingelela" {% if request.args.get('domain') == 'Ukubingelela' %}selected{% endif %}>Ukubingelela (Greetings)</option>
+            <option value="Ukuvakashela" {% if request.args.get('domain') == 'Ukuvakashela' %}selected{% endif %}>Ukuvakashela (Visiting)</option>
+            <option value="Izaga & Izisho" {% if request.args.get('domain') == 'Izaga & Izisho' %}selected{% endif %}>Izaga & Izisho (Proverbs & Sayings)</option>
+            <option value="Ubudlelwano" {% if request.args.get('domain') == 'Ubudlelwano' %}selected{% endif %}>Ubudlelwano (Relationships)</option>
+            <option value="Imicimbi" {% if request.args.get('domain') == 'Imicimbi' %}selected{% endif %}>Imicimbi (Events)</option>
+            <option value="Ukunxiba & Ubuhle" {% if request.args.get('domain') == 'Ukunxiba & Ubuhle' %}selected{% endif %}>Ukunxiba & Ubuhle (Dressing & Beauty)</option>
+            <option value="Ukudla" {% if request.args.get('domain') == 'Ukudla' %}selected{% endif %}>Ukudla (Food)</option>
+            <option value="Umculo & Umhubhe" {% if request.args.get('domain') == 'Umculo & Umhubhe' %}selected{% endif %}>Umculo & Umhubhe (Music & Hymn)</option>
+          </select>
+          <button 
+            type="submit" 
+            class="ml-auto bg-unizulu-yellow text-unizulu-blue font-semibold px-6 py-3 rounded-md hover:bg-yellow-400 transition duration-200">
+            Search
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Results Section -->
+  {% if results %}
+  <section class="max-w-4xl mx-auto p-6">
+    <h2 class="text-2xl font-bold text-unizulu-blue mb-5">
+      Search results for: "<span class="text-unizulu-yellow">{{ query }}</span>"
+    </h2>
+
+    {% for entry in results %}
+    <div class="bg-white border-l-4 border-unizulu-blue rounded-lg shadow p-5 mb-4 hover:shadow-md transition duration-200">
+      <p class="text-lg text-unizulu-blue mb-1"><strong>Zulu:</strong> {{ entry.zulu }}</p>
+      <p class="text-lg text-gray-800"><strong>English:</strong> {{ entry.english }}</p>
+      <div class="text-sm text-gray-600 mt-3 flex flex-wrap items-center">
+        <span class="mr-4">Domain: <span class="font-medium text-unizulu-blue">{{ entry.domain }}</span></span> 
+        <span>Tags: <span class="italic text-unizulu-yellow">
+          {% if entry.tags %}{{ entry.tags | join(', ') }}{% else %}none{% endif %}
+        </span></span>
+      </div>
+      <!-- Link to detail page (future) -->
+      <a href="{{ url_for('result_detail', entry_id=entry.id) }}" class="text-sm text-unizulu-blue hover:underline mt-2 inline-block">View Details &raquo;</a>
+    </div>
+    {% endfor %}
+  </section>
+  {% elif query %}
+  <!-- If user searched but no results -->
+  <section class="max-w-4xl mx-auto p-6">
+    <h2 class="text-2xl font-bold text-unizulu-blue mb-4">
+      No results found for "<span class="text-unizulu-yellow">{{ query }}</span>"
+    </h2>
+    <p class="text-gray-700">Try a different search term or domain.</p>
+  </section>
+  {% endif %}
+</body>
+</html>

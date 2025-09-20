@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Corpus</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+</head>
+<body class="bg-gray-50 font-sans">
+  <div class="max-w-md mx-auto mt-20 bg-white shadow-lg rounded-xl p-8">
+    <h2 class="text-2xl font-bold text-blue-900 mb-6 text-center">Create an Account</h2>
+    <form action="{{ url_for('register') }}" method="post" class="space-y-4">
+      <input type="text" name="username" placeholder="Username" required
+             class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-700">
+      <input type="email" name="email" placeholder="Email" required
+             class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-700">
+      <input type="password" name="password" placeholder="Password" required
+             class="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-700">
+      <button type="submit"
+              class="w-full bg-blue-900 text-white py-2 rounded-md hover:bg-blue-800 transition">
+        Register
+      </button>
+    </form>
+    <p class="text-sm text-center mt-4">
+      Already have an account? 
+      <a href="{{ url_for('login') }}" class="text-blue-900 font-semibold hover:underline">Login</a>
+    </p>
+  </div>
+</body>
+</html>
