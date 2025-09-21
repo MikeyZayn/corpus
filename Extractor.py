@@ -1,3 +1,22 @@
+#THis is standalone as per the lecturers requirements you just need to install the dependancies.
+"""THese are the dependancies:
+# PDF extraction
+pymupdf>=1.23.0
+
+# Hugging Face + Transformers
+transformers>=4.44.0
+sentencepiece>=0.1.99
+sacremoses>=0.0.53
+
+# Language detection
+langdetect>=1.0.9
+
+# Core dependencies
+torch>=2.0.0
+"""
+
+#Install them and please start testing.
+
 import re
 import sys
 import fitz  # PyMuPDF for PDF reading
@@ -62,3 +81,4 @@ if __name__ == "__main__":
 
     extractor = Extractor(input_file, output_file, sentences_per_page)
     extractor.extract()
+
