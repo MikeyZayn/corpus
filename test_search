@@ -1,0 +1,176 @@
+import pytest_flask
+from flask import render_template, request, session, redirect, url_for, flash
+import datetime
+from langdetect import detect
+from groq import Groq
+import os
+import json
+
+
+class Search:
+    def __init__(self, sentences_collection, logs_collection, search_history_collection, log_action):
+        self.sentences = sentences_collection
+        self.logs = logs_collection
+        self.search_history = search_history_collection
+        self.log_action = log_action
+        self.MAX_HISTORY = 5
+        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+    def _get_ai_generated_content(self, word, language):
+        prompt = f"""
+        For the {'isiZulu' if language == 'zu' else 'English'} word "{word}":
+        1. Provide its origin (brief paragraph)
+        2. List common collocations with meanings
+        3. Translate to: isiXhosa, Ndebele, Sepedi, Sesotho
+        4. Create a natural sentence using this word
+        5. Suggest an appropriate domain category
+        6. Find a source (website/article) containing this word in context
+
+        Format as JSON:
+        {{
+            "origin": "...",
+            "collocations": [{{"phrase": "...", "meaning": "..."}}],
+            "translations": {{
+                "xhosa": "...",
+                "ndebele": "...",
+                "sepedi": "...",
+                "sesotho": "..."
+            }},
+            "sentence_pair": {{
+                "zulu": "...",
+                "english": "..."
+            }},
+            "domain": "...",
+            "source": "..."
+        }}
+        """
+
+        try:
+            completion = self.client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+                max_tokens=1000
+            )
+            return json.loads(completion.choices[0].message.content)
+        except Exception as e:
+            self.log_action("ai_generation_error", details={"error": str(e)})
+            return None
+
+    def _update_search_history(self, user_email, query, domain_filter, results_count):
+        new_search = {
+            "user_email": user_email,
+            "query": query,
+            "domain_filter": domain_filter,
+            "results_count": results_count,
+            "timestamp": datetime.datetime.utcnow()
+        }
+
+        existing_count = self.search_history.count_documents({"user_email": user_email})
+
+        if existing_count >= self.MAX_HISTORY:
+            oldest = self.search_history.find_one(
+                {"user_email": user_email},
+                sort=[("timestamp", 1)]
+            )
+            if oldest:
+                self.search_history.delete_one({"_id": oldest["_id"]})
+
+        self.search_history.insert_one(new_search)
+
+    def search_results(self):
+        query = request.args.get("search", "").strip()
+        domain_filter = request.args.get("domain")
+        results, frequencies = [], {}
+
+        print("🔍 SEARCH QUERY:", query)
+        print("🔍 DOMAIN FILTER:", domain_filter)
+
+        if not query:
+            flash("Please enter a search term.", "warning")
+            return render_template("results.html", results=[], frequencies={}, query=query, domain_filter=domain_filter)
+
+        if query.isdigit():
+            flash("Search term cannot be numbers only.", "danger")
+            return render_template("results.html", results=[], frequencies={}, query=query, domain_filter=domain_filter)
+
+        if len(query) < 2:
+            flash("Search term must be at least 2 characters long.", "warning")
+            return render_template("results.html", results=[], frequencies={}, query=query, domain_filter=domain_filter)
+
+        try:
+            lang = detect(query)
+
+            # Base search criteria
+            search_criteria = {
+                "$or": [
+                    {"zulu": {"$regex": query, "$options": "i"}},
+                    {"english": {"$regex": query, "$options": "i"}}
+                ],
+                "status": {"$in": ["Approved", "Pending"]}
+            }
+
+            if domain_filter and domain_filter not in ["", "All Domains"]:
+                search_criteria["domain"] = {"$in": [domain_filter]}
+
+            print("🔎 SEARCH CRITERIA:", search_criteria)
+
+            results = list(self.sentences.find(search_criteria).limit(50))
+            print("📊 RESULTS FOUND:", len(results))
+
+            if not results and session.get("user_email"):
+                ai_content = self._get_ai_generated_content(query, lang)
+                if ai_content:
+                    new_entry = {
+                        "zulu": ai_content["sentence_pair"]["zulu"],
+                        "english": ai_content["sentence_pair"]["english"],
+                        "domain": [ai_content["domain"]],
+                        "added_by": f"{session['user_email']}-AI",
+                        "created_at": datetime.datetime.utcnow(),
+                        "status": "Pending",
+                        "origin": ai_content["origin"],
+                        "collocations": ai_content["collocations"],
+                        "translations": ai_content["translations"],
+                        "source": ai_content["source"]
+                    }
+                    self.sentences.insert_one(new_entry)
+                    results.append(new_entry)
+                    flash("New entry generated using AI and added to corpus!", "success")
+
+            if session.get("user_email"):
+                self._update_search_history(
+                    user_email=session["user_email"],
+                    query=query,
+                    domain_filter=domain_filter,
+                    results_count=len(results)
+                )
+
+                recent_searches = list(
+                    self.search_history.find({"user_email": session["user_email"]})
+                    .sort("timestamp", -1)
+                    .limit(self.MAX_HISTORY)
+                )
+            else:
+                recent_searches = []
+
+            return render_template(
+                "results.html",
+                results=results,
+                frequencies=frequencies,
+                query=query,
+                domain_filter=domain_filter,
+                recent_searches=recent_searches
+            )
+
+        except Exception as e:
+            flash(f"Search failed: {e}", "danger")
+            print("❌ SEARCH ERROR:", e)
+            results = []
+
+        return render_template(
+            "results.html",
+            results=results,
+            frequencies=frequencies,
+            query=query,
+            domain_filter=domain_filter
+        )
