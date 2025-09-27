@@ -9,6 +9,19 @@ from config.database import sentences_collection, user_contributions_collection
 # Import centralized log_action
 from utils.logging import log_action
 
+load_dotenv()
+SECRET_KEY = os.environ.get("FLASK_SECRET")
+MONGO_URI = os.environ.get("MONGO_URI")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY") # Ensure Groq API key is loaded
+# ----------------------------
+# Database Setup (MongoDB Atlas)
+# ----------------------
+# ---------- DB init ----------
+if not MONGO_URI:
+    raise RuntimeError("MONGO_URI environment variable not set")
+if not GROQ_API_KEY:
+    raise RuntimeError("GROQ_API_KEY environment variable not set")
+
 
 class Corpus:
     def __init__(self, sentences_collection, search_history_collection, log_action, upload_folder, temp_folder):
